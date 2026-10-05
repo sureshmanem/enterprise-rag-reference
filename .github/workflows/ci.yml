@@ -13,6 +13,8 @@ jobs:
         python-version: ["3.10", "3.12"]
     env:
       ANONYMIZED_TELEMETRY: "False"
+      RAG_PROVIDER: openai
+      RAG_OPENAI_API_KEY: ${{ secrets.RAG_OPENAI_API_KEY }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -23,4 +25,5 @@ jobs:
       - run: ruff check src tests eval
       - run: pytest -q
       - name: Retrieval evaluation
+        if: ${{ env.RAG_OPENAI_API_KEY != '' && matrix.python-version == '3.12' }}
         run: python eval/run_eval.py

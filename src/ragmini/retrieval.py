@@ -7,13 +7,27 @@ ranked lists without needing to calibrate their very different score scales.
 
 from __future__ import annotations
 
+import re
+
 from rank_bm25 import BM25Okapi
 
 from .models import Chunk, RetrievedChunk
-from .providers import Embedder, tokenize
+from .providers import Embedder
 from .vectorstore import VectorStore
 
 RRF_K = 60  # standard constant from Cormack et al. (2009)
+
+TOKEN_RE = re.compile(r"[a-z0-9]+")
+STOPWORDS = frozenset(
+    "a an and are as at be by can do does for from get how i in is it my of on or "
+    "the to was what when where which who why will with you your".split()
+)
+
+
+def tokenize(text: str) -> list[str]:
+    """Keyword tokens for BM25: lower-cased, stopwords dropped, crude plural fold."""
+    toks = [t for t in TOKEN_RE.findall(text.lower()) if t not in STOPWORDS]
+    return [t[:-1] if len(t) > 3 and t.endswith("s") else t for t in toks]
 
 
 class HybridRetriever:

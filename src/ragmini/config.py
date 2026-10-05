@@ -16,8 +16,8 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="RAG_", env_file=".env", extra="ignore")
 
-    # Providers: "azure" (Azure OpenAI / AI Foundry), "openai", or "fake" (offline tests/demo)
-    provider: Literal["azure", "openai", "fake"] = "fake"
+    # Providers: "openai" or "azure" (Azure OpenAI / AI Foundry)
+    provider: Literal["azure", "openai"] = "openai"
 
     # Azure OpenAI / Azure AI Foundry
     azure_endpoint: str | None = None
