@@ -9,10 +9,12 @@ from __future__ import annotations
 
 import re
 
+from langsmith import traceable
 from rank_bm25 import BM25Okapi
 
 from .models import Chunk, RetrievedChunk
 from .providers import Embedder
+from .tracing import as_documents
 from .vectorstore import VectorStore
 
 RRF_K = 60  # standard constant from Cormack et al. (2009)
@@ -56,6 +58,12 @@ class HybridRetriever:
             self._indexed_count = self.store.count()
         return self._bm25
 
+    @traceable(
+        run_type="retriever",
+        name="retrieve",
+        process_inputs=lambda i: {"query": i["query"]},
+        process_outputs=as_documents,
+    )
     def retrieve(self, query: str) -> list[RetrievedChunk]:
         qvec = self.embedder.embed([query])[0]
         dense = [(c, s) for c, s in self.store.query(qvec, self.candidate_k) if s >= self.min_relevance]

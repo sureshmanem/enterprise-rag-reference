@@ -8,12 +8,15 @@ import time
 from collections import defaultdict
 from collections.abc import Iterable
 
+from langsmith import get_current_run_tree, traceable
+
 from .chunking import chunk_documents
 from .config import Settings
 from .models import Answer, Chunk, Citation, Document
 from .prompting import SYSTEM_PROMPT, build_user_prompt, format_context
 from .providers import ChatModel, Embedder, build_chat, build_embedder
 from .retrieval import HybridRetriever
+from .tracing import configure_tracing
 from .vectorstore import VectorStore
 
 log = logging.getLogger(__name__)
@@ -29,6 +32,7 @@ class RAG:
         store: VectorStore | None = None,
     ) -> None:
         self.s = settings
+        configure_tracing(settings)
         self.embedder = embedder or build_embedder(settings)
         self.chat = chat or build_chat(settings)
         self.store = store or VectorStore(
@@ -40,6 +44,7 @@ class RAG:
         )
 
     # ------------------------------------------------------------- ingestion
+    @traceable(run_type="chain", name="rag.ingest", process_inputs=lambda i: {})
     def ingest(self, docs: Iterable[Document]) -> dict[str, int]:
         t0 = time.perf_counter()
         chunks = list(chunk_documents(docs, self.s.chunk_size, self.s.chunk_overlap))
@@ -64,10 +69,17 @@ class RAG:
         return stats
 
     # ------------------------------------------------------------- answering
+    @traceable(run_type="chain", name="rag.ask", process_inputs=lambda i: {"question": i["question"]})
     def ask(self, question: str) -> Answer:
         question = question.strip()
         if not question:
             raise ValueError("Question must not be empty")
+        if run := get_current_run_tree():
+            run.add_metadata({
+                "provider": self.s.provider, "embedding_model": self.s.embedding_model,
+                "chat_model": self.s.chat_model, "top_k": self.s.top_k, "hybrid": self.s.hybrid,
+                "collection": self.s.collection,
+            })
 
         t0 = time.perf_counter()
         results = self.retriever.retrieve(question)

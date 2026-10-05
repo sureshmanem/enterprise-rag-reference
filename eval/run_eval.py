@@ -7,7 +7,10 @@ Metrics:
 - grounded   : the answer cites at least one passage
 
 Run:  python eval/run_eval.py --docs data/sample
+      python eval/run_eval.py --langsmith   # also log an experiment to LangSmith
 Use this to compare chunk sizes, top-K, hybrid on/off, or embedding models objectively.
+With --langsmith the golden set is synced to a LangSmith dataset and each run becomes an
+experiment, so configurations can be compared side by side in the LangSmith UI.
 """
 
 from __future__ import annotations
@@ -46,11 +49,72 @@ def evaluate(rag: RAG, golden: list[dict]) -> dict[str, float]:
     }
 
 
+def sync_dataset(client, name: str, golden: list[dict]):
+    """Create the LangSmith dataset from the golden set, adding any questions it lacks."""
+    if client.has_dataset(dataset_name=name):
+        dataset = client.read_dataset(dataset_name=name)
+    else:
+        dataset = client.create_dataset(name, description="rag-mini golden set")
+    known = {ex.inputs["question"] for ex in client.list_examples(dataset_id=dataset.id)}
+    new = [c for c in golden if c["question"] not in known]
+    if new:
+        client.create_examples(
+            dataset_id=dataset.id,
+            inputs=[{"question": c["question"]} for c in new],
+            outputs=[{k: c[k] for k in ("expected_source", "expected_answer_contains")} for c in new],
+        )
+    return dataset
+
+
+def run_langsmith(rag: RAG, golden: list[dict], dataset_name: str) -> None:
+    from langsmith import Client, evaluate
+
+    if not rag.s.langsmith_api_key:
+        sys.exit("--langsmith needs LANGSMITH_API_KEY (in the environment or .env)")
+    client = Client(api_key=rag.s.langsmith_api_key, api_url=rag.s.langsmith_endpoint)
+    sync_dataset(client, dataset_name, golden)
+
+    def target(inputs: dict) -> dict:
+        ans = rag.ask(inputs["question"])
+        sources = [r.chunk.source for r in rag.retriever.retrieve(inputs["question"])]
+        return {"answer": ans.answer, "grounded": ans.grounded, "sources": sources}
+
+    def hit(outputs: dict, reference_outputs: dict) -> dict:
+        return {"key": f"hit_rate@{rag.s.top_k}",
+                "score": reference_outputs["expected_source"] in outputs["sources"]}
+
+    def reciprocal_rank(outputs: dict, reference_outputs: dict) -> dict:
+        src = reference_outputs["expected_source"]
+        rr = 1 / (outputs["sources"].index(src) + 1) if src in outputs["sources"] else 0.0
+        return {"key": "mrr", "score": rr}
+
+    def answer_acc(outputs: dict, reference_outputs: dict) -> dict:
+        return {"key": "answer_acc",
+                "score": reference_outputs["expected_answer_contains"].lower() in outputs["answer"].lower()}
+
+    def grounded(outputs: dict) -> dict:
+        return {"key": "grounded", "score": outputs["grounded"]}
+
+    s = rag.s
+    results = evaluate(
+        target,
+        data=dataset_name,
+        evaluators=[hit, reciprocal_rank, answer_acc, grounded],
+        experiment_prefix=f"{s.chat_model}-{'hybrid' if s.hybrid else 'vector'}-k{s.top_k}",
+        metadata={"embedding_model": s.embedding_model, "chat_model": s.chat_model, "top_k": s.top_k,
+                  "hybrid": s.hybrid, "chunk_size": s.chunk_size, "chunk_overlap": s.chunk_overlap},
+        client=client,
+    )
+    print(f"LangSmith experiment: {results.experiment_name}")
+
+
 def main() -> None:
     p = argparse.ArgumentParser()
     p.add_argument("--docs", default="data/sample")
     p.add_argument("--golden", default="eval/golden.jsonl")
     p.add_argument("--hybrid", action=argparse.BooleanOptionalAction, default=True)
+    p.add_argument("--langsmith", action="store_true", help="log an experiment to LangSmith")
+    p.add_argument("--dataset", default="rag-mini-golden", help="LangSmith dataset name")
     args = p.parse_args()
 
     golden = [json.loads(line) for line in Path(args.golden).read_text().splitlines() if line.strip()]
@@ -58,7 +122,10 @@ def main() -> None:
         settings = Settings(persist_dir=tmp, hybrid=args.hybrid)
         rag = RAG(settings)
         rag.ingest(load_directory(args.docs))
-        print(json.dumps(evaluate(rag, golden), indent=2))
+        if args.langsmith:
+            run_langsmith(rag, golden, args.dataset)
+        else:
+            print(json.dumps(evaluate(rag, golden), indent=2))
 
 
 if __name__ == "__main__":

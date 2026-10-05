@@ -48,6 +48,8 @@ flowchart TB
 | Quality | Golden-set evaluation: hit-rate@K, MRR, answer accuracy, groundedness | `eval/` |
 | Quality | Unit tests + API-backed integration tests (skipped without credentials) + GitHub Actions CI | `tests/`, `.github/` |
 | Ops | Timing logs for retrieval vs generation; `/health` endpoint; Dockerfile | `pipeline.py`, `api.py` |
+| Observability | **LangSmith tracing**: one trace per question (retrieval → embedding → LLM) with tokens, latency, retrieved passages and config metadata | `tracing.py` |
+| Quality | Golden set synced to a LangSmith dataset; each eval run logged as a comparable experiment | `eval/run_eval.py` |
 
 ## Quickstart
 
@@ -81,6 +83,35 @@ RAG_COLLECTION=documents_te3small   # name collections after the embedding model
 
 Changing the embedding model requires re-indexing into a new collection; the store enforces this.
 
+### Trace with LangSmith
+
+Create an API key at [smith.langchain.com](https://smith.langchain.com) and add to `.env`:
+
+```bash
+LANGSMITH_TRACING=true
+LANGSMITH_API_KEY=lsv2_...
+LANGSMITH_PROJECT=rag-mini
+```
+
+Every `rag ask` / `POST /ask` then appears as a trace:
+
+```
+rag.ask            question, answer, citations; metadata: models, top_k, hybrid, collection
+├── retrieve       retrieved passages with source, page, fused score and cosine similarity
+│   └── embed      query embedding (model, dimension)
+└── ChatOpenAI     full prompt, completion, token usage, latency
+```
+
+`rag ingest` is traced as `rag.ingest` with chunk and stale-removal counts. Tests disable tracing.
+
+Log an evaluation run as a LangSmith experiment (the golden set is synced to the
+`rag-mini-golden` dataset), then compare configurations side by side in the UI:
+
+```bash
+python eval/run_eval.py --langsmith
+python eval/run_eval.py --langsmith --no-hybrid
+```
+
 ### Index SharePoint
 
 Register an Entra ID app with the `Sites.Read.All` application permission, set `SP_TENANT_ID`,
@@ -109,6 +140,7 @@ src/ragmini/
   vectorstore.py Chroma with model pinning
   retrieval.py   hybrid retrieval + RRF
   prompting.py   grounded prompt + citations
+  tracing.py     LangSmith setup + retriever trace formatting
   pipeline.py    ingest() and ask()
   api.py / cli.py
 eval/            golden set + metrics
@@ -121,7 +153,7 @@ tests/           unit + integration tests
 - Add a **cross-encoder re-ranker** after fusion.
 - Enforce **document-level permissions** (security trimming) using SharePoint ACLs as metadata filters.
 - Incremental sync with Graph delta queries; OCR for scanned PDFs.
-- Tracing (OpenTelemetry) and LLM-as-judge faithfulness evaluation.
+- LLM-as-judge faithfulness evaluators in LangSmith; user feedback (thumbs up/down) attached to traces.
 
 ## License
 

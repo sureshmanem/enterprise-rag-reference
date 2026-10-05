@@ -9,6 +9,9 @@ from ragmini.pipeline import RAG
 
 SAMPLE = Path(__file__).resolve().parents[1] / "data" / "sample"
 
+# Keep test runs out of the LangSmith project unless explicitly asked for.
+os.environ.setdefault("LANGSMITH_TRACING", "false")
+
 
 def _has_credentials() -> bool:
     try:

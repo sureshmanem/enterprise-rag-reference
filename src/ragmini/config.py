@@ -14,7 +14,9 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_prefix="RAG_", env_file=".env", extra="ignore")
+    model_config = SettingsConfigDict(
+        env_prefix="RAG_", env_file=".env", extra="ignore", populate_by_name=True
+    )
 
     # Providers: "openai" or "azure" (Azure OpenAI / AI Foundry)
     provider: Literal["azure", "openai"] = "openai"
@@ -52,6 +54,12 @@ class Settings(BaseSettings):
     persist_dir: str = ".chroma"
     collection: str = "documents"
 
+    # Observability: LangSmith tracing (standard LANGSMITH_* names, no RAG_ prefix)
+    langsmith_tracing: bool = Field(False, validation_alias="LANGSMITH_TRACING")
+    langsmith_api_key: str | None = Field(None, validation_alias="LANGSMITH_API_KEY")
+    langsmith_project: str = Field("rag-mini", validation_alias="LANGSMITH_PROJECT")
+    langsmith_endpoint: str | None = Field(None, validation_alias="LANGSMITH_ENDPOINT")
+
     @model_validator(mode="after")
     def _check(self) -> Settings:
         if self.chunk_overlap >= self.chunk_size:
@@ -62,6 +70,8 @@ class Settings(BaseSettings):
             raise ValueError("Azure provider needs RAG_AZURE_ENDPOINT and RAG_AZURE_API_KEY")
         if self.provider == "openai" and not self.openai_api_key:
             raise ValueError("OpenAI provider needs RAG_OPENAI_API_KEY")
+        if self.langsmith_tracing and not self.langsmith_api_key:
+            raise ValueError("LANGSMITH_TRACING=true needs LANGSMITH_API_KEY")
         return self
 
 

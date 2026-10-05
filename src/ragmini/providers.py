@@ -2,12 +2,15 @@
 
 - Azure OpenAI (Azure AI Foundry deployments) and OpenAI are interchangeable.
 - Batching + exponential-backoff retries handle rate limits (HTTP 429) gracefully.
+- Clients are wrapped for LangSmith, so chat calls are traced with token usage when tracing is on.
 """
 
 from __future__ import annotations
 
 from typing import Protocol
 
+from langsmith import get_current_run_tree, traceable
+from langsmith.wrappers import wrap_openai
 from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_random_exponential
 
 from .config import Settings
@@ -29,12 +32,12 @@ def _client(s: Settings):
     if s.provider == "azure":
         from openai import AzureOpenAI
 
-        return AzureOpenAI(
+        return wrap_openai(AzureOpenAI(
             azure_endpoint=s.azure_endpoint, api_key=s.azure_api_key, api_version=s.azure_api_version
-        )
+        ))
     from openai import OpenAI
 
-    return OpenAI(api_key=s.openai_api_key)
+    return wrap_openai(OpenAI(api_key=s.openai_api_key))
 
 
 def _retryable():
@@ -59,7 +62,15 @@ class OpenAIEmbedder:
         resp = self.client.embeddings.create(model=self.model_id, input=batch)
         return [d.embedding for d in sorted(resp.data, key=lambda d: d.index)]
 
+    @traceable(
+        run_type="embedding",
+        name="embed",
+        process_inputs=lambda i: {"count": len(i["texts"])},
+        process_outputs=lambda o: {"count": len(o), "dim": len(o[0]) if o else 0},
+    )
     def embed(self, texts: list[str]) -> list[list[float]]:
+        if run := get_current_run_tree():
+            run.add_metadata({"ls_model_name": self.model_id})
         out: list[list[float]] = []
         for i in range(0, len(texts), self.batch):
             out.extend(self._call([t.replace("\n", " ") for t in texts[i:i + self.batch]]))

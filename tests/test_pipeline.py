@@ -68,3 +68,30 @@ def test_empty_question_rejected(rag):
 
 def test_tokenize_drops_stopwords_and_folds_plurals():
     assert tokenize("How many leave days for HR-POL-021?") == ["many", "leave", "day", "hr", "pol", "021"]
+
+
+def test_langsmith_tracing_requires_api_key():
+    with pytest.raises(ValueError, match="LANGSMITH_API_KEY"):
+        Settings(langsmith_tracing=True, langsmith_api_key=None)
+
+
+@pytest.mark.integration
+def test_ask_produces_trace_tree(rag):
+    from unittest.mock import MagicMock
+
+    import langsmith
+    from langsmith import get_current_run_tree, traceable, tracing_context
+
+    @traceable(name="probe")
+    def probe():
+        rag.ask("How many days of annual leave do full-time employees get?")
+        return get_current_run_tree()
+
+    with tracing_context(enabled=True, client=MagicMock(spec=langsmith.Client)):
+        root = probe()
+
+    ask = root.child_runs[0]
+    assert ask.name == "rag.ask" and ask.metadata["chat_model"] == rag.s.chat_model
+    assert [c.run_type for c in ask.child_runs] == ["retriever", "llm"]
+    docs = ask.child_runs[0].outputs["documents"]
+    assert docs[0]["metadata"]["source"] == "leave_policy.md"
