@@ -16,6 +16,7 @@ jobs:
       ANONYMIZED_TELEMETRY: "False"
       RAG_PROVIDER: openai
       RAG_OPENAI_API_KEY: ${{ secrets.RAG_OPENAI_API_KEY }}
+      LANGSMITH_API_KEY: ${{ secrets.LANGSMITH_API_KEY }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -27,4 +28,11 @@ jobs:
       - run: pytest -q
       - name: Retrieval evaluation
         if: ${{ env.RAG_OPENAI_API_KEY != '' && matrix.python-version == '3.12' }}
-        run: python eval/run_eval.py
+        # With LANGSMITH_API_KEY set, each run is logged as an experiment on the rag-mini-golden
+        # dataset, tagged with commit, branch and CI run URL. Tests themselves are never traced.
+        run: |
+          if [ -n "$LANGSMITH_API_KEY" ]; then
+            python eval/run_eval.py --langsmith
+          else
+            python eval/run_eval.py
+          fi

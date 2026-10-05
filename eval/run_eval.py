@@ -17,6 +17,8 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
+import subprocess
 import sys
 import tempfile
 from pathlib import Path
@@ -66,6 +68,26 @@ def sync_dataset(client, name: str, golden: list[dict]):
     return dataset
 
 
+def git_context() -> dict[str, str]:
+    """Commit, branch and origin of this run, so experiments can be traced back to code."""
+    def git(*a: str) -> str:
+        try:
+            return subprocess.run(["git", *a], capture_output=True, text=True, check=True).stdout.strip()
+        except (OSError, subprocess.CalledProcessError):
+            return "unknown"
+
+    ctx = {
+        "commit": os.getenv("GITHUB_SHA") or git("rev-parse", "HEAD"),
+        "branch": os.getenv("GITHUB_HEAD_REF") or os.getenv("GITHUB_REF_NAME")
+        or git("rev-parse", "--abbrev-ref", "HEAD"),
+        "source": "github-actions" if os.getenv("GITHUB_ACTIONS") else "local",
+    }
+    if os.getenv("GITHUB_RUN_ID"):
+        ctx["ci_run_url"] = (f"{os.getenv('GITHUB_SERVER_URL')}/{os.getenv('GITHUB_REPOSITORY')}"
+                             f"/actions/runs/{os.getenv('GITHUB_RUN_ID')}")
+    return ctx
+
+
 def run_langsmith(rag: RAG, golden: list[dict], dataset_name: str) -> None:
     from langsmith import Client, evaluate
 
@@ -95,16 +117,24 @@ def run_langsmith(rag: RAG, golden: list[dict], dataset_name: str) -> None:
     def grounded(outputs: dict) -> dict:
         return {"key": "grounded", "score": outputs["grounded"]}
 
-    s = rag.s
+    s, git = rag.s, git_context()
+    mode = "hybrid" if s.hybrid else "vector"
     results = evaluate(
         target,
         data=dataset_name,
         evaluators=[hit, reciprocal_rank, answer_acc, grounded],
-        experiment_prefix=f"{s.chat_model}-{'hybrid' if s.hybrid else 'vector'}-k{s.top_k}",
+        experiment_prefix=f"{s.chat_model}-{mode}-k{s.top_k}-{git['commit'][:7]}",
         metadata={"embedding_model": s.embedding_model, "chat_model": s.chat_model, "top_k": s.top_k,
-                  "hybrid": s.hybrid, "chunk_size": s.chunk_size, "chunk_overlap": s.chunk_overlap},
+                  "hybrid": s.hybrid, "chunk_size": s.chunk_size, "chunk_overlap": s.chunk_overlap, **git},
         client=client,
     )
+
+    scores: dict[str, list[float]] = {}
+    for row in results:
+        for r in row["evaluation_results"]["results"]:
+            scores.setdefault(r.key, []).append(float(r.score or 0))
+    summary = {k: round(sum(v) / len(v), 3) for k, v in sorted(scores.items())}
+    print(json.dumps({**summary, "n": len(golden)}, indent=2))
     print(f"LangSmith experiment: {results.experiment_name}")
 
 

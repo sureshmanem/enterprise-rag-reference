@@ -182,11 +182,17 @@ Integration tests (`@pytest.mark.integration`) call the real embedding and chat 
 automatically when no credentials are configured.
 
 **CI** (GitHub Actions, Python 3.10 and 3.12) runs ruff and the tests on every push and pull request.
-To run the integration tests and the evaluation in CI too, add a repository secret:
+To run the integration tests and the evaluation in CI too, add repository secrets:
 
 ```bash
-gh secret set RAG_OPENAI_API_KEY
+gh secret set RAG_OPENAI_API_KEY   # integration tests + evaluation
+gh secret set LANGSMITH_API_KEY    # optional: log each CI evaluation as a LangSmith experiment
 ```
+
+With `LANGSMITH_API_KEY` set, every CI run adds an experiment to the `rag-mini-golden` dataset, named
+`<chat-model>-<mode>-k<top_k>-<commit>` and tagged with commit, branch and the CI run URL, so answer
+quality can be compared commit by commit. Tests are never traced. CI can also be started manually from
+**Actions → CI → Run workflow**.
 
 ## Project layout
 
