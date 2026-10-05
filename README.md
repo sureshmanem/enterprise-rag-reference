@@ -59,7 +59,7 @@ flowchart TB
 | Quality | Unit tests + API-backed integration tests (skipped without credentials) + GitHub Actions CI | `tests/`, `.github/` |
 | Ops | Timing logs for retrieval vs generation; `/health` endpoint; Dockerfile | `pipeline.py`, `api.py` |
 | Observability | **LangSmith tracing**: one trace per question (retrieval → embedding → LLM) with tokens, latency, retrieved passages and config metadata | `tracing.py` |
-| Quality | Golden set synced to a LangSmith dataset; each eval run logged as a comparable experiment | `eval/run_eval.py` |
+| Quality | Golden set synced to a LangSmith dataset; each eval run (local or CI, per commit) logged as a comparable experiment tagged with commit and branch | `eval/run_eval.py`, `.github/` |
 
 ## Quickstart
 
@@ -144,6 +144,11 @@ Log an evaluation run as a LangSmith experiment (the golden set is synced to the
 python eval/run_eval.py --langsmith
 python eval/run_eval.py --langsmith --no-hybrid
 ```
+
+Experiments are named `<chat-model>-<mode>-k<top_k>-<commit>` (for example
+`gpt-4o-mini-hybrid-k5-f1a9fb4-…`) and carry the commit, branch and `source` (`local` or
+`github-actions`, plus the CI run URL) as metadata. CI logs one automatically on every push; see
+[Testing](#testing). Open **Datasets → rag-mini-golden → Experiments** in LangSmith to compare runs.
 
 ### Index SharePoint
 
