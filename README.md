@@ -13,6 +13,10 @@ Every question is traced end to end in **LangSmith**, and retrieval quality is m
 
 The Python package and CLI are called `rag-mini` / `rag`.
 
+**New to RAG?** [Concepts.md](Concepts.md) explains every idea in this project in depth: chunking,
+embeddings, hybrid search and RRF, grounded prompting, tracing, evaluation, lessons learned, a tuning
+guide and known limitations.
+
 ## Architecture
 
 ```mermaid
@@ -215,6 +219,7 @@ src/ragmini/
   pipeline.py    ingest() and ask()
   api.py / cli.py
 data/sample/     ten sample policies
+Concepts.md      concepts, best practices, tuning guide, limitations
 eval/            golden set + metrics (+ LangSmith experiments)
 tests/           unit + integration tests
 ```
