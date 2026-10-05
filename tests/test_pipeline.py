@@ -48,9 +48,15 @@ def test_embedding_model_mismatch_is_blocked(tmp_path):
 
 
 @pytest.mark.integration
-def test_keyword_search_finds_policy_ids(rag):
-    results = rag.retriever.retrieve("HR-POL-021")
-    assert results[0].chunk.source == "remote_work.md"
+@pytest.mark.parametrize("policy_id, source", [
+    ("HR-POL-021", "remote_work.md"),
+    ("HR-POL-014", "leave_policy.md"),
+    ("FIN-POL-012", "procurement_policy.md"),
+    ("LEG-POL-001", "code_of_conduct.md"),
+])
+def test_keyword_search_finds_policy_ids(rag, policy_id, source):
+    results = rag.retriever.retrieve(policy_id)
+    assert results[0].chunk.source == source
 
 
 def test_settings_validation():
@@ -67,7 +73,9 @@ def test_empty_question_rejected(rag):
 
 
 def test_tokenize_drops_stopwords_and_folds_plurals():
-    assert tokenize("How many leave days for HR-POL-021?") == ["many", "leave", "day", "hr", "pol", "021"]
+    assert tokenize("How many leave days for HR-POL-021?") == [
+        "many", "leave", "day", "hr", "pol", "021", "hr-pol-021"
+    ]
 
 
 def test_langsmith_tracing_requires_api_key():

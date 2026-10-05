@@ -26,7 +26,12 @@ def format_context(results: list[RetrievedChunk], max_chars: int) -> tuple[str, 
     blocks, used, total = [], [], 0
     for r in results:
         page = r.chunk.metadata.get("page")
-        header = f"[{len(used) + 1}] source: {r.chunk.source}" + (f", page {page}" if page else "")
+        title = r.chunk.metadata.get("title")
+        header = (
+            f"[{len(used) + 1}] source: {r.chunk.source}"
+            + (f", page {page}" if page else "")
+            + (f", document: {title}" if title else "")
+        )
         block = f"{header}\n{r.chunk.text}"
         if total + len(block) > max_chars and used:
             break

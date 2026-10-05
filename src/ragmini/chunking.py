@@ -71,12 +71,22 @@ def _heading_for(text: str) -> str | None:
     return m.group(1).strip() if m else None
 
 
+def _title_for(text: str) -> str | None:
+    m = re.search(r"^#\s+(.+)$", text, flags=re.M)
+    return m.group(1).strip() if m else None
+
+
 def chunk_documents(docs: Iterable[Document], size: int, overlap: int) -> Iterator[Chunk]:
     for doc in docs:
         last_heading = None
+        # Every chunk carries its document title, so a passage from the middle of a document
+        # still says which policy (and policy ID) it belongs to.
+        title = doc.metadata.get("title") or _title_for(doc.text)
         for i, piece in enumerate(chunk_text(doc.text, size, overlap)):
             last_heading = _heading_for(piece) or last_heading
             meta = {**doc.metadata, "chunk_index": i}
+            if title:
+                meta["title"] = title
             if last_heading:
                 meta["section"] = last_heading
             yield Chunk(

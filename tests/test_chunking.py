@@ -35,3 +35,11 @@ def test_ids_are_deterministic_and_metadata_kept():
     assert [c.id for c in c1] == [c.id for c in c2]
     assert c1[0].metadata["page"] == 2
     assert c1[0].metadata["section"] == "Title"
+
+
+def test_chunks_carry_document_title():
+    body = "\n\n".join(f"## Section {i}\n\n" + "Some policy text here. " * 20 for i in range(5))
+    doc = Document(text="# Travel Policy (FIN-POL-007)\n\n" + body, source="t.md")
+    chunks = list(chunk_documents([doc], size=300, overlap=30))
+    assert len(chunks) > 1
+    assert {c.metadata["title"] for c in chunks} == {"Travel Policy (FIN-POL-007)"}

@@ -20,6 +20,8 @@ from .vectorstore import VectorStore
 RRF_K = 60  # standard constant from Cormack et al. (2009)
 
 TOKEN_RE = re.compile(r"[a-z0-9]+")
+# Identifiers like HR-POL-021 or SKU-42: kept whole so an exact ID match outweighs shared parts.
+IDENT_RE = re.compile(r"[a-z0-9]+(?:-[a-z0-9]+)+")
 STOPWORDS = frozenset(
     "a an and are as at be by can do does for from get how i in is it my of on or "
     "the to was what when where which who why will with you your".split()
@@ -27,9 +29,10 @@ STOPWORDS = frozenset(
 
 
 def tokenize(text: str) -> list[str]:
-    """Keyword tokens for BM25: lower-cased, stopwords dropped, crude plural fold."""
-    toks = [t for t in TOKEN_RE.findall(text.lower()) if t not in STOPWORDS]
-    return [t[:-1] if len(t) > 3 and t.endswith("s") else t for t in toks]
+    """Keyword tokens for BM25: lower-cased, stopwords dropped, crude plural fold, IDs kept whole."""
+    text = text.lower()
+    toks = [t for t in TOKEN_RE.findall(text) if t not in STOPWORDS]
+    return [t[:-1] if len(t) > 3 and t.endswith("s") else t for t in toks] + IDENT_RE.findall(text)
 
 
 class HybridRetriever:
@@ -87,7 +90,14 @@ class HybridRetriever:
                 else:
                     fused[chunk.id] = RetrievedChunk(chunk=chunk, score=bonus)
 
-        results = sorted(fused.values(), key=lambda r: r.score, reverse=True)
+        # A user who types an exact identifier wants that document: rank exact matches first.
+        # (RRF alone can let near-identical IDs or dense noise outvote a perfect keyword hit.)
+        idents = IDENT_RE.findall(query.lower())
+
+        def exact(r: RetrievedChunk) -> bool:
+            return bool(idents) and any(i in r.chunk.text.lower() for i in idents)
+
+        results = sorted(fused.values(), key=lambda r: (exact(r), r.score), reverse=True)
         return self._dedupe(results)[: self.top_k]
 
     @staticmethod

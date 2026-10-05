@@ -8,3 +8,19 @@
 {"question": "How many days per week can I work remotely?", "expected_source": "remote_work.md", "expected_answer_contains": "3 days"}
 {"question": "What is the home office stipend?", "expected_source": "remote_work.md", "expected_answer_contains": "500 USD"}
 {"question": "What does HR-POL-021 say about VPN?", "expected_source": "remote_work.md", "expected_answer_contains": "VPN"}
+{"question": "What is the minimum password length?", "expected_source": "it_acceptable_use.md", "expected_answer_contains": "14"}
+{"question": "Can I store company files on a USB stick?", "expected_source": "it_acceptable_use.md", "expected_answer_contains": "USB"}
+{"question": "How quickly must a suspected data breach be reported?", "expected_source": "data_privacy.md", "expected_answer_contains": "24 hours"}
+{"question": "How long is customer personal data retained?", "expected_source": "data_privacy.md", "expected_answer_contains": "6 years"}
+{"question": "What is the maximum value of gifts I can accept from a business partner?", "expected_source": "code_of_conduct.md", "expected_answer_contains": "100 USD"}
+{"question": "How can I report misconduct anonymously?", "expected_source": "code_of_conduct.md", "expected_answer_contains": "Ethics Hotline"}
+{"question": "How many quotes do I need for a large purchase?", "expected_source": "procurement_policy.md", "expected_answer_contains": "three"}
+{"question": "Who must approve a purchase above 50,000 USD?", "expected_source": "procurement_policy.md", "expected_answer_contains": "CFO"}
+{"question": "What does FIN-POL-012 say about payment terms?", "expected_source": "procurement_policy.md", "expected_answer_contains": "45 days"}
+{"question": "How much does Contoso match on 401(k) contributions?", "expected_source": "benefits_overview.md", "expected_answer_contains": "5%"}
+{"question": "How much is the yearly wellness allowance?", "expected_source": "benefits_overview.md", "expected_answer_contains": "600 USD"}
+{"question": "What is my annual training budget?", "expected_source": "learning_development.md", "expected_answer_contains": "2,000 USD"}
+{"question": "Do I have to repay tuition reimbursement if I leave?", "expected_source": "learning_development.md", "expected_answer_contains": "12 months"}
+{"question": "Where is the fire assembly point?", "expected_source": "facilities_safety.md", "expected_answer_contains": "north car park"}
+{"question": "How far ahead can I book a desk?", "expected_source": "facilities_safety.md", "expected_answer_contains": "14 days"}
+{"question": "How soon must I report a workplace injury?", "expected_source": "facilities_safety.md", "expected_answer_contains": "24 hours"}
