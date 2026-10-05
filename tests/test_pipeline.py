@@ -80,7 +80,7 @@ def test_tokenize_drops_stopwords_and_folds_plurals():
 
 def test_langsmith_tracing_requires_api_key():
     with pytest.raises(ValueError, match="LANGSMITH_API_KEY"):
-        Settings(langsmith_tracing=True, langsmith_api_key=None)
+        Settings(openai_api_key="sk-test", langsmith_tracing=True, langsmith_api_key=None)
 
 
 @pytest.mark.integration
