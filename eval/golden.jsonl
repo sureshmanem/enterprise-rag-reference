@@ -1,0 +1,10 @@
+{"question": "How many days of annual leave do full-time employees get?", "expected_source": "leave_policy.md", "expected_answer_contains": "20 days"}
+{"question": "How many unused leave days can I carry over?", "expected_source": "leave_policy.md", "expected_answer_contains": "5"}
+{"question": "When is a medical certificate needed for sick leave?", "expected_source": "leave_policy.md", "expected_answer_contains": "3 consecutive"}
+{"question": "How long is parental leave for primary caregivers?", "expected_source": "leave_policy.md", "expected_answer_contains": "16 weeks"}
+{"question": "What is the daily meal allowance for international travel?", "expected_source": "expenses_policy.md", "expected_answer_contains": "100 USD"}
+{"question": "What is the hotel cap in major cities?", "expected_source": "expenses_policy.md", "expected_answer_contains": "250 USD"}
+{"question": "How soon must expense reports be submitted?", "expected_source": "expenses_policy.md", "expected_answer_contains": "30 days"}
+{"question": "How many days per week can I work remotely?", "expected_source": "remote_work.md", "expected_answer_contains": "3 days"}
+{"question": "What is the home office stipend?", "expected_source": "remote_work.md", "expected_answer_contains": "500 USD"}
+{"question": "What does HR-POL-021 say about VPN?", "expected_source": "remote_work.md", "expected_answer_contains": "VPN"}
